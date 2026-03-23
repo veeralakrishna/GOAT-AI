@@ -3,6 +3,7 @@ import os
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VIDEO_DIR = os.path.join(BASE_DIR, "video")
+RECORDINGS_DIR = os.path.join(BASE_DIR, "Recordings")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 
 # Model Settings

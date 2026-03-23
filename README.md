@@ -10,17 +10,18 @@ In the processed video, the system identifies:
 *   **Goat/Livestock Instances**: Bounded by a green segmentation mask.
 *   **Bounding Box**: A red rotated rectangle fitting the animal's posture.
 *   **Measurements**:
-    *   **L (Length)**: The estimated length of the animal in cm.
-    *   **H (Height/Width)**: The estimated width/girth in cm.
-    *   (Note: Measurements are currently relative approximations based on pixel-to-cm calibration).
+    *   **L (Length)**: The estimated real-world length of the animal in cm.
+    *   **H (Height/Width)**: The estimated real-world width/height of the animal in cm.
+    *   **C (Chest Girth)**: The approximated chest circumference ($\pi \times H$) in cm.
+    *   **Z (Depth)**: The median physical distance (depth) of the animal from the camera in cm (Orbbec SDK).
+    *   (Note: Measurements use true 3D depth from Orbbec `.bag` files, computing real dimensions instead of relative pixel approximations).
 
 ## Architecture
 
 The framework consists of the following pipeline:
 
 1.  **Input Layer**:
-    *   Ingests raw video files (MP4) from the `video/` directory.
-    *   Extracts frames using OpenCV.
+    *   Ingests PyOrbbecSDK Orbbec Femto recordings (`.bag` files) from `Recordings/` directory with perfectly aligned depth and color streams.
 
 2.  **Detection Module (`src/detector.py`)**:
     *   **Model**: YOLOv8 (Instance Segmentation).
@@ -36,10 +37,10 @@ The framework consists of the following pipeline:
         *   Computes Contour Area.
     *   **Calibration**: Converts pixel values to Centimeters using a configurable `PIXELS_PER_CM` factor.
 
-4.  **Visualization (`src/processor.py`)**:
+4.  **Visualization (`src/bag_processor.py`)**:
     *   Overlays the segmentation mask (Green).
     *   Draws the rotated bounding box (Red).
-    *   Prints the calculated dimensions near the animal.
+    *   Prints the calculated dimensions (L, H, C, Z) near the animal.
 
 5.  **Output**:
     *   Saves the annotated video to `output/`.
@@ -47,7 +48,6 @@ The framework consists of the following pipeline:
 ## Configuration
 All settings can be adjusted in `config.py`:
 *   `MODEL_NAME`: Switch between `yolov8n-seg.pt` (Speed) and `yolov8x-seg.pt` (Accuracy).
-*   `PIXELS_PER_CM`: Calibration scaling factor.
 
 ## Running the Pipeline
 ```bash
