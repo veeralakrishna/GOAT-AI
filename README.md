@@ -11,8 +11,8 @@ In the processed video, the system identifies:
 *   **Bounding Box**: A red rotated rectangle fitting the animal's posture.
 *   **Measurements**:
     *   **L (Length)**: The estimated real-world length of the animal in cm.
-    *   **H (Height/Width)**: The estimated real-world width/height of the animal in cm.
-    *   **C (Chest Girth)**: The approximated chest circumference ($\pi \times H$) in cm.
+    *   **H (Height/Width)**: The estimated real-world full standing height of the animal in cm.
+    *   **C (Chest Girth)**: The approximated chest circumference ($\pi \times H \times 0.27$) in cm, adjusted for torso depth to ignore legs/neck.
     *   **Z (Depth)**: The median physical distance (depth) of the animal from the camera in cm (Orbbec SDK).
     *   (Note: Measurements use true 3D depth from Orbbec `.bag` files, computing real dimensions instead of relative pixel approximations).
 

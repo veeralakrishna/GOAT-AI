@@ -49,8 +49,11 @@ class BiometricEstimator:
         length_cm = max(dim1, dim2)
         width_cm = min(dim1, dim2)
         
-        # Estimate Chest Girth (approximating chest cross-section as circular/elliptical)
-        chest_girth_cm = width_cm * np.pi
+        # Estimate Chest Girth
+        # The bounding box includes legs, neck, and head. 
+        # Empirical ratio: True chest depth is approx 27% of the full standing height for these goats.
+        chest_diameter_cm = width_cm * 0.27
+        chest_girth_cm = chest_diameter_cm * np.pi
         
         box = cv2.boxPoints(rect)
         box = np.int32(box)

@@ -19,11 +19,17 @@ class BagProcessor:
             target_classes=config.TARGET_CLASSES
         )
         self.estimator = BiometricEstimator(pixels_per_cm=config.PIXELS_PER_CM)
+        self.playback_stopped = False
         
+    def on_status_change(self, status):
+        if status == OBPlaybackStatus.STOPPED:
+            self.playback_stopped = True
+            
     def process(self):
         print(f"Opening bag file: {self.input_path}")
         try:
             playback = PlaybackDevice(self.input_path)
+            playback.set_playback_status_change_callback(self.on_status_change)
             pipeline = Pipeline(playback)
             cfg = Config()
             
@@ -59,7 +65,7 @@ class BagProcessor:
         frame_count = 0
         start_time = time.time()
         
-        while True:
+        while not self.playback_stopped:
             try:
                 frames = pipeline.wait_for_frames(100)
                 if not frames:
