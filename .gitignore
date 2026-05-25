@@ -12,6 +12,15 @@ output/
 Log/
 pyorbbecsdk/
 
+# ML Model weights (large binary files - use Git LFS or store externally)
+*.pt
+*.pth
+*.onnx
+*.engine
+*.bin
+*.ckpt
+*.safetensors
+
 # Distribution / packaging
 .Python
 build/
