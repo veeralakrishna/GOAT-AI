@@ -5,6 +5,9 @@ import numpy as np
 from src.detector import GoatDetector
 from src.measurements import BiometricEstimator
 import config
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VideoProcessor:
     def __init__(self, input_path, output_path):
@@ -13,18 +16,19 @@ class VideoProcessor:
         
         # Initialize components
         self.detector = GoatDetector(
-            model_path=config.MODEL_NAME, 
+            detect_model=config.DETECTION_MODEL,
+            seg_model=config.SEGMENTATION_MODEL,
             conf_thres=config.CONFIDENCE_THRESHOLD,
             target_classes=config.TARGET_CLASSES
         )
         self.estimator = BiometricEstimator(pixels_per_cm=config.PIXELS_PER_CM)
         
     def process(self):
-        print(f"Opening video: {self.input_path}")
+        logger.info(f"Opening video: {self.input_path}")
         cap = cv2.VideoCapture(self.input_path)
         
         if not cap.isOpened():
-            print("Error: Could not open video.")
+            logger.error("Error: Could not open video.")
             return
 
         # Video properties
@@ -58,7 +62,8 @@ class VideoProcessor:
                 masks = results.masks.xy # List of polygon arrays
                 
                 for i, mask in enumerate(masks):
-                    if len(mask) == 0: continue
+                    if len(mask) == 0:
+                        continue
                     
                     # Convert to integer countour
                     contour = np.array(mask, dtype=np.int32)
@@ -75,22 +80,32 @@ class VideoProcessor:
                     cv2.drawContours(annotated_frame, [box], 0, (0, 0, 255), 2)
                     
                     # Draw Text
+                    texts = [
+                        f"L: {metrics['length_cm']}cm | H: {metrics['width_cm']}cm",
+                    ]
+                    
+                    if config.ENABLE_CONFIDENCE_SCORING and 'confidence' in metrics:
+                        conf = metrics['confidence']
+                        texts.append(f"Confidence: {conf}%")
+                    
                     label_pos = box[1] # Use one of the corners
-                    text = f"L: {metrics['length_cm']}cm | H: {metrics['width_cm']}cm"
-                    cv2.putText(annotated_frame, text, (label_pos[0], label_pos[1] - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    y_pos = label_pos[1] - 10
+                    for txt in texts:
+                        cv2.putText(annotated_frame, txt, (label_pos[0], y_pos),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                        y_pos -= 25
                                 
             # Write frame
             out.write(annotated_frame)
             
             if frame_count % 30 == 0:
-                print(f"Processed {frame_count} frames...")
+                logger.info(f"Processed {frame_count} frames...")
 
         # Cleanup
         cap.release()
         out.release()
         end_time = time.time()
         duration = end_time - start_time
-        print(f"Processing complete. Saved to {self.output_path}")
-        print(f"Total time: {duration:.2f}s, FPS: {frame_count/duration:.2f}")
+        logger.info(f"Processing complete. Saved to {self.output_path}")
+        logger.info(f"Total time: {duration:.2f}s, FPS: {frame_count/duration:.2f}")
 

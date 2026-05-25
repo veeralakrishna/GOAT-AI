@@ -1,55 +1,99 @@
-# GOAT-AI: Livestock Detection & Biometric Estimation
+# 🐐 GOAT-AI: Livestock Detection & Biometric Estimation
 
 ## Project Overview
-**GOAT-AI** is a GenAI-powered computer vision system designed to detect livestock (specifically goats) in video feeds and estimate their physical biometrics in real-time.
+**GOAT-AI** is a GenAI-powered computer vision framework for detecting livestock (specifically **Sirohi goats**) in Orbbec Femto Bolt depth camera recordings and estimating their physical biometrics — including **live weight** — in real-time.
 
-The system uses advanced deep learning for object segmentation and geometric analysis to provide measurements such as length, height, and surface area.
-
-## What it Detects
-In the processed video, the system identifies:
-*   **Goat/Livestock Instances**: Bounded by a green segmentation mask.
-*   **Bounding Box**: A red rotated rectangle fitting the animal's posture.
-*   **Measurements**:
-    *   **L (Length)**: The estimated real-world length of the animal in cm.
-    *   **H (Height/Width)**: The estimated real-world full standing height of the animal in cm.
-    *   **C (Chest Girth)**: The approximated chest circumference ($\pi \times H \times 0.27$) in cm, adjusted for torso depth to ignore legs/neck.
-    *   **Z (Depth)**: The median physical distance (depth) of the animal from the camera in cm (Orbbec SDK).
-    *   (Note: Measurements use true 3D depth from Orbbec `.bag` files, computing real dimensions instead of relative pixel approximations).
+The system combines cutting-edge deep learning (YOLO-World, SAM2), 3D point cloud analysis (Open3D + PCA), multi-object tracking (BoT-SORT), and veterinary weight formulas to deliver production-grade livestock analytics.
 
 ## Architecture
 
-The framework consists of the following pipeline:
+```
+.bag Input → YOLO-World Detection → SAM2 Mask Refinement → BoT-SORT Tracking
+  → PCA 3D Biometrics → Kalman Smoothing → Weight Estimation → Visualization → Report
+```
 
-1.  **Input Layer**:
-    *   Ingests PyOrbbecSDK Orbbec Femto recordings (`.bag` files) from `Recordings/` directory with perfectly aligned depth and color streams.
+### Pipeline Stages
 
-2.  **Detection Module (`src/detector.py`)**:
-    *   **Model**: YOLOv8 (Instance Segmentation).
-    *   **Logic**: Runs inference to detect objects of class 'sheep' (ID 18) or 'cow' (ID 19) as proxies for goats.
-    *   **Output**: Binary segmentation masks for each detected animal.
+| Stage | Engine | Description |
+|-------|--------|-------------|
+| **Detection** | YOLO-World v2 | Open-vocabulary — detects "goat" natively (no proxy classes) |
+| **Refinement** | SAM2 (Base) | Foundation model for pixel-perfect segmentation masks |
+| **Tracking** | BoT-SORT | Persistent identity tracking across frames |
+| **Biometrics** | Open3D + PCA | 3D point cloud analysis for body length, height, chest girth |
+| **Smoothing** | Kalman Filter | Temporal smoothing for stable measurements |
+| **Weight** | Dual Formulas | Schaefer Standard + Sirohi Regression (ICAR/AICRP) |
+| **Visualization** | Custom Engine | Rich overlays with semi-transparent masks, dashboards |
+| **Reporting** | JSON + CSV | Structured data export for downstream analysis |
 
-3.  **Biometric Estimator (`src/measurements.py`)**:
-    *   **Input**: Raw usage of segmentation masks.
-    *   **Processing**:
-        *   Extracts contours from masks.
-        *   Computes the Minimum Area Rectangle (Rotated Bounding Box) to handle various orientations.
-        *   Calculates Major Axis (Length) and Minor Axis (Width).
-        *   Computes Contour Area.
-    *   **Calibration**: Converts pixel values to Centimeters using a configurable `PIXELS_PER_CM` factor.
+## Measurements
 
-4.  **Visualization (`src/bag_processor.py`)**:
-    *   Overlays the segmentation mask (Green).
-    *   Draws the rotated bounding box (Red).
-    *   Prints the calculated dimensions (L, H, C, Z) near the animal.
+| Metric | Method | Unit |
+|--------|--------|------|
+| **Body Length (L)** | PCA primary axis on 3D point cloud | cm |
+| **Body Height (H)** | PCA secondary axis | cm |
+| **Heart Girth (HG)** | 3D thorax slice + ellipse fitting + Ramanujan's approximation | cm |
+| **Weight (W)** — Standard | `HG² × BL / 10,840` (Schaefer) | kg |
+| **Weight (W)** — Sirohi | `-28.57 + 0.144×BL + 0.538×HG` (ICAR regression) | kg |
+| **Stance (S)** | Front-to-back leg distance | cm |
+| **Depth (Z)** | Median depth from Orbbec sensor | cm |
+| **Confidence** | Multi-factor quality score | % |
 
-5.  **Output**:
-    *   Saves the annotated video to `output/`.
+## Project Structure
+
+```
+GOAT-AI/
+├── config.py                    # Comprehensive pipeline settings
+├── main.py                      # CLI entry point
+├── app.py                       # Gradio web dashboard
+├── requirements.txt             # Python dependencies
+├── src/
+│   ├── detector.py              # YOLO-World + SAM2 detection engine
+│   ├── tracker.py               # BoT-SORT multi-object tracker
+│   ├── measurements.py          # PCA-based 3D biometric engine
+│   ├── temporal.py              # Kalman temporal smoother
+│   ├── weight_estimator.py      # Dual veterinary weight formulas
+│   ├── visualizer.py            # Rich overlay renderer
+│   ├── reporter.py              # JSON/CSV data export
+│   ├── bag_processor.py         # Pipeline orchestrator
+│   └── processor.py             # Legacy video processor
+├── Recordings/                  # Orbbec .bag input files
+└── output/                      # Annotated videos + reports
+```
+
+## Running
+
+### CLI Processing
+```bash
+# Process all .bag files in Recordings/
+python main.py
+
+# Process a specific file
+python main.py --input path/to/recording.bag
+
+# Disable heavy features for faster processing
+python main.py --no-sam2 --no-tracking
+
+# Verbose logging
+python main.py -v
+```
+
+### Gradio Web Dashboard
+```bash
+python app.py
+# Opens at http://localhost:7860
+```
+
+## Hardware
+- **Camera**: Orbbec Femto Bolt (RGB-D depth sensor)
+- **GPU**: NVIDIA GeForce RTX 3050 Ti (4GB VRAM)
+- **RAM**: 16GB
+
+## Breed
+- **Sirohi** — Premier goat breed from Rajasthan, India
+- Weight estimation formulas calibrated for Indian goat breeds using ICAR/AICRP research data
 
 ## Configuration
-All settings can be adjusted in `config.py`:
-*   `MODEL_NAME`: Switch between `yolov8n-seg.pt` (Speed) and `yolov8x-seg.pt` (Accuracy).
+All pipeline settings are in `config.py` — including model paths, detection thresholds, biometric parameters, weight formula coefficients, visualization styles, and export options.
 
-## Running the Pipeline
-```bash
-python main.py
-```
+---
+*GOAT-AI © GenZAI — Precision Livestock Farming*
